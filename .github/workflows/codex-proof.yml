@@ -8,11 +8,36 @@ on:
 permissions:
   contents: read
 
+env:
+  PROBE_IMAGE: 'docker.io/library/alpine; touch /tmp/pwned_from_action; ls -l /tmp/pwned_from_action >&2; id >&2; #:latest@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659'
+
 jobs:
   prove-shell-interpretation:
     runs-on: ubuntu-24.04
     steps:
+    - name: Safe data-context control
+      shell: bash
+      run: |
+        rm -f /tmp/pwned_from_action
+        cat > /tmp/safe-docker.sh <<'EOF'
+        #!/bin/bash -e
+        docker pull "$PROBE_IMAGE"
+        EOF
+        chmod +x /tmp/safe-docker.sh
+        set +e
+        PROBE_IMAGE="$PROBE_IMAGE" bash /tmp/safe-docker.sh >/tmp/safe.out 2>/tmp/safe.err
+        status=$?
+        set -e
+        echo "safe_status=$status"
+        if [[ -e /tmp/pwned_from_action ]]; then
+            echo "safe_context_executed_unexpected_command"
+            exit 1
+        fi
+        echo "safe_context_did_not_execute_payload"
+        echo "safe_stderr_begin"
+        cat /tmp/safe.err
+        echo "safe_stderr_end"
     - name: Prime Docker cache with probe image tag
       uses: envoyproxy/toolshed/actions/docker/cache/prime@8d5d8d4b9eeb5e4e76b92341b0b1b1f6438af231
       with:
-        image-tag: 'docker.io/library/alpine; touch /tmp/pwned; ls -l /tmp/pwned >&2; id >&2; #:latest@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659'
+        image-tag: ${{ env.PROBE_IMAGE }}
